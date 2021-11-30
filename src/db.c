@@ -72,6 +72,7 @@ robj *lookupKey(redisDb *db, robj *key, int flags) {
             if (server.maxmemory_policy & MAXMEMORY_FLAG_LFU) {
                 updateLFU(val);
             } else {
+                //redis 内部维护了一个 公共的 LRU 时钟，定时刷新对应的值。
                 val->lru = LRU_CLOCK();
             }
         }

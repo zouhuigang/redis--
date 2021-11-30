@@ -1,3 +1,27 @@
+### docker image
+https://github.com/docker-library/redis/blob/a04a6df0a45894e1a630db4e84e0c12c7bcf326a/6.2/Dockerfile
+
+
+
+### 本地开发
+
+    % make
+    % make test
+    #运行完之后，应该可以看到:
+    \o/ All tests passed without errors!
+    
+运行
+
+     % cd src
+     % ./redis-server
+
+
+### 开发小技巧
+
+容量预估： http://www.redis.cn/redis_memory/
+
+
+
 This README is just a fast *quick start* document. You can find more detailed documentation at [redis.io](https://redis.io).
 
 What is Redis?
