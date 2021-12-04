@@ -481,9 +481,13 @@ int aeWait(int fd, int mask, long long milliseconds) {
     }
 }
 
+/**
+ * 事件循环
+ * */
 void aeMain(aeEventLoop *eventLoop) {
     eventLoop->stop = 0;
     while (!eventLoop->stop) {
+        //开始处理事件
         aeProcessEvents(eventLoop, AE_ALL_EVENTS|
                                    AE_CALL_BEFORE_SLEEP|
                                    AE_CALL_AFTER_SLEEP);

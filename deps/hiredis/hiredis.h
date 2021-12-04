@@ -1,46 +1,18 @@
-/*
- * Copyright (c) 2009-2011, Salvatore Sanfilippo <antirez at gmail dot com>
- * Copyright (c) 2010-2014, Pieter Noordhuis <pcnoordhuis at gmail dot com>
- * Copyright (c) 2015, Matt Stancliff <matt at genges dot com>,
- *                     Jan-Erik Rediger <janerik at fnordig dot com>
- *
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *   * Redistributions of source code must retain the above copyright notice,
- *     this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in the
- *     documentation and/or other materials provided with the distribution.
- *   * Neither the name of Redis nor the names of its contributors may be used
- *     to endorse or promote products derived from this software without
- *     specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-
 #ifndef __HIREDIS_H
 #define __HIREDIS_H
+
 #include "read.h"
 #include <stdarg.h> /* for va_list */
+
 #ifndef _MSC_VER
+
 #include <sys/time.h> /* for struct timeval */
+
 #else
 struct timeval; /* forward declaration */
 typedef long long ssize_t;
 #endif
+
 #include <stdint.h> /* uintXX_t, etc */
 #include "sds.h" /* for hisds */
 #include "alloc.h" /* for allocation wrappers */
@@ -98,7 +70,9 @@ struct redisContext;
 
 /* RESP3 push helpers and callback prototypes */
 #define redisIsPushReply(r) (((redisReply*)(r))->type == REDIS_REPLY_PUSH)
+
 typedef void (redisPushFn)(void *, void *);
+
 typedef void (redisAsyncPushFn)(struct redisAsyncContext *, void *);
 
 #ifdef __cplusplus
@@ -126,10 +100,15 @@ void freeReplyObject(void *reply);
 
 /* Functions to format a command according to the protocol. */
 int redisvFormatCommand(char **target, const char *format, va_list ap);
+
 int redisFormatCommand(char **target, const char *format, ...);
+
 int redisFormatCommandArgv(char **target, int argc, const char **argv, const size_t *argvlen);
-int redisFormatSdsCommandArgv(hisds *target, int argc, const char ** argv, const size_t *argvlen);
+
+int redisFormatSdsCommandArgv(hisds *target, int argc, const char **argv, const size_t *argvlen);
+
 void redisFreeCommand(char *cmd);
+
 void redisFreeSdsCommand(hisds cmd);
 
 enum redisConnectionType {
@@ -198,6 +177,7 @@ typedef struct {
 
     /* Optional user defined data/destructor */
     void *privdata;
+
     void (*free_privdata)(void *);
 
     /* A user defined PUSH message callback */
@@ -223,20 +203,29 @@ typedef struct {
 
 typedef struct redisContextFuncs {
     void (*free_privctx)(void *);
+
     void (*async_read)(struct redisAsyncContext *);
+
     void (*async_write)(struct redisAsyncContext *);
+
     ssize_t (*read)(struct redisContext *, char *, size_t);
+
     ssize_t (*write)(struct redisContext *);
 } redisContextFuncs;
 
-/* Context for a connection to Redis */
+/*
+ * 代表一个Redis连接的上下文结构体
+ * */
 typedef struct redisContext {
     const redisContextFuncs *funcs;   /* Function table */
-
-    int err; /* Error flags, 0 when there is no error */
-    char errstr[128]; /* String representation of error when applicable */
+    //操作过程中的错误标志，0表示无错误
+    int err;
+    //错误信息字符串
+    char errstr[128];
+    //redis-client连接服务器后的socket文件
     redisFD fd;
     int flags;
+    //保存输入的命令
     char *obuf; /* Write buffer */
     redisReader *reader; /* Protocol reader */
 
@@ -244,6 +233,7 @@ typedef struct redisContext {
     struct timeval *connect_timeout;
     struct timeval *command_timeout;
 
+    //保存一个tcp连接的信息，包括IP，协议族，端口
     struct {
         char *host;
         char *source_addr;
@@ -261,6 +251,7 @@ typedef struct redisContext {
     /* Optional data and corresponding destructor users can use to provide
      * context to a given redisContext.  Not used by hiredis. */
     void *privdata;
+
     void (*free_privdata)(void *);
 
     /* Internal context pointer presently used by hiredis to manage
@@ -272,16 +263,25 @@ typedef struct redisContext {
 } redisContext;
 
 redisContext *redisConnectWithOptions(const redisOptions *options);
+
 redisContext *redisConnect(const char *ip, int port);
+
 redisContext *redisConnectWithTimeout(const char *ip, int port, const struct timeval tv);
+
 redisContext *redisConnectNonBlock(const char *ip, int port);
+
 redisContext *redisConnectBindNonBlock(const char *ip, int port,
                                        const char *source_addr);
+
 redisContext *redisConnectBindNonBlockWithReuse(const char *ip, int port,
                                                 const char *source_addr);
+
 redisContext *redisConnectUnix(const char *path);
+
 redisContext *redisConnectUnixWithTimeout(const char *path, const struct timeval tv);
+
 redisContext *redisConnectUnixNonBlock(const char *path);
+
 redisContext *redisConnectFd(redisFD fd);
 
 /**
@@ -296,11 +296,17 @@ redisContext *redisConnectFd(redisFD fd);
 int redisReconnect(redisContext *c);
 
 redisPushFn *redisSetPushCallback(redisContext *c, redisPushFn *fn);
+
 int redisSetTimeout(redisContext *c, const struct timeval tv);
+
 int redisEnableKeepAlive(redisContext *c);
+
 void redisFree(redisContext *c);
+
 redisFD redisFreeKeepFd(redisContext *c);
+
 int redisBufferRead(redisContext *c);
+
 int redisBufferWrite(redisContext *c, int *done);
 
 /* In a blocking context, this function first checks if there are unconsumed
@@ -308,6 +314,7 @@ int redisBufferWrite(redisContext *c, int *done);
  * buffer to the socket and reads until it has a reply. In a non-blocking
  * context, it will return unconsumed replies until there are no more. */
 int redisGetReply(redisContext *c, void **reply);
+
 int redisGetReplyFromReader(redisContext *c, void **reply);
 
 /* Write a formatted command to the output buffer. Use these functions in blocking mode
@@ -317,7 +324,9 @@ int redisAppendFormattedCommand(redisContext *c, const char *cmd, size_t len);
 /* Write a command to the output buffer. Use these functions in blocking mode
  * to get a pipeline of commands. */
 int redisvAppendCommand(redisContext *c, const char *format, va_list ap);
+
 int redisAppendCommand(redisContext *c, const char *format, ...);
+
 int redisAppendCommandArgv(redisContext *c, int argc, const char **argv, const size_t *argvlen);
 
 /* Issue a command to Redis. In a blocking context, it is identical to calling
@@ -326,7 +335,9 @@ int redisAppendCommandArgv(redisContext *c, int argc, const char **argv, const s
  * return the reply. In a non-blocking context, it is identical to calling
  * only redisAppendCommand and will always return NULL. */
 void *redisvCommand(redisContext *c, const char *format, va_list ap);
+
 void *redisCommand(redisContext *c, const char *format, ...);
+
 void *redisCommandArgv(redisContext *c, int argc, const char **argv, const size_t *argvlen);
 
 #ifdef __cplusplus
