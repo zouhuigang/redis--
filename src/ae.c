@@ -1,33 +1,5 @@
-/* A simple event-driven programming library. Originally I wrote this code
- * for the Jim's event-loop (Jim is a Tcl interpreter) but later translated
- * it in form of a library for easy reuse.
- *
- * Copyright (c) 2006-2010, Salvatore Sanfilippo <antirez at gmail dot com>
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *   * Redistributions of source code must retain the above copyright notice,
- *     this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in the
- *     documentation and/or other materials provided with the distribution.
- *   * Neither the name of Redis nor the names of its contributors may be used
- *     to endorse or promote products derived from this software without
- *     specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+/*
+ * Reactor模型事件驱动框架
  */
 
 #include "ae.h"
@@ -51,15 +23,17 @@
 #ifdef HAVE_EVPORT
 #include "ae_evport.c"
 #else
-    #ifdef HAVE_EPOLL
-    #include "ae_epoll.c"
-    #else
-        #ifdef HAVE_KQUEUE
-        #include "ae_kqueue.c"
-        #else
-        #include "ae_select.c"
-        #endif
-    #endif
+#ifdef HAVE_EPOLL
+#include "ae_epoll.c"
+#else
+#ifdef HAVE_KQUEUE
+#include "ae_kqueue.c"
+#else
+
+#include "ae_select.c"
+
+#endif
+#endif
 #endif
 
 
@@ -70,8 +44,8 @@ aeEventLoop *aeCreateEventLoop(int setsize) {
     monotonicInit();    /* just in case the calling app didn't initialize */
 
     if ((eventLoop = zmalloc(sizeof(*eventLoop))) == NULL) goto err;
-    eventLoop->events = zmalloc(sizeof(aeFileEvent)*setsize);
-    eventLoop->fired = zmalloc(sizeof(aeFiredEvent)*setsize);
+    eventLoop->events = zmalloc(sizeof(aeFileEvent) * setsize);
+    eventLoop->fired = zmalloc(sizeof(aeFiredEvent) * setsize);
     if (eventLoop->events == NULL || eventLoop->fired == NULL) goto err;
     eventLoop->setsize = setsize;
     eventLoop->timeEventHead = NULL;
@@ -88,7 +62,7 @@ aeEventLoop *aeCreateEventLoop(int setsize) {
         eventLoop->events[i].mask = AE_NONE;
     return eventLoop;
 
-err:
+    err:
     if (eventLoop) {
         zfree(eventLoop->events);
         zfree(eventLoop->fired);
@@ -122,15 +96,15 @@ int aeResizeSetSize(aeEventLoop *eventLoop, int setsize) {
 
     if (setsize == eventLoop->setsize) return AE_OK;
     if (eventLoop->maxfd >= setsize) return AE_ERR;
-    if (aeApiResize(eventLoop,setsize) == -1) return AE_ERR;
+    if (aeApiResize(eventLoop, setsize) == -1) return AE_ERR;
 
-    eventLoop->events = zrealloc(eventLoop->events,sizeof(aeFileEvent)*setsize);
-    eventLoop->fired = zrealloc(eventLoop->fired,sizeof(aeFiredEvent)*setsize);
+    eventLoop->events = zrealloc(eventLoop->events, sizeof(aeFileEvent) * setsize);
+    eventLoop->fired = zrealloc(eventLoop->fired, sizeof(aeFiredEvent) * setsize);
     eventLoop->setsize = setsize;
 
     /* Make sure that if we created new slots, they are initialized with
      * an AE_NONE mask. */
-    for (i = eventLoop->maxfd+1; i < setsize; i++)
+    for (i = eventLoop->maxfd + 1; i < setsize; i++)
         eventLoop->events[i].mask = AE_NONE;
     return AE_OK;
 }
@@ -155,8 +129,7 @@ void aeStop(aeEventLoop *eventLoop) {
 }
 
 int aeCreateFileEvent(aeEventLoop *eventLoop, int fd, int mask,
-        aeFileProc *proc, void *clientData)
-{
+                      aeFileProc *proc, void *clientData) {
     if (fd >= eventLoop->setsize) {
         errno = ERANGE;
         return AE_ERR;
@@ -174,8 +147,7 @@ int aeCreateFileEvent(aeEventLoop *eventLoop, int fd, int mask,
     return AE_OK;
 }
 
-void aeDeleteFileEvent(aeEventLoop *eventLoop, int fd, int mask)
-{
+void aeDeleteFileEvent(aeEventLoop *eventLoop, int fd, int mask) {
     if (fd >= eventLoop->setsize) return;
     aeFileEvent *fe = &eventLoop->events[fd];
     if (fe->mask == AE_NONE) return;
@@ -190,7 +162,7 @@ void aeDeleteFileEvent(aeEventLoop *eventLoop, int fd, int mask)
         /* Update the max fd */
         int j;
 
-        for (j = eventLoop->maxfd-1; j >= 0; j--)
+        for (j = eventLoop->maxfd - 1; j >= 0; j--)
             if (eventLoop->events[j].mask != AE_NONE) break;
         eventLoop->maxfd = j;
     }
@@ -204,9 +176,8 @@ int aeGetFileEvents(aeEventLoop *eventLoop, int fd) {
 }
 
 long long aeCreateTimeEvent(aeEventLoop *eventLoop, long long milliseconds,
-        aeTimeProc *proc, void *clientData,
-        aeEventFinalizerProc *finalizerProc)
-{
+                            aeTimeProc *proc, void *clientData,
+                            aeEventFinalizerProc *finalizerProc) {
     long long id = eventLoop->timeEventNextId++;
     aeTimeEvent *te;
 
@@ -226,10 +197,9 @@ long long aeCreateTimeEvent(aeEventLoop *eventLoop, long long milliseconds,
     return id;
 }
 
-int aeDeleteTimeEvent(aeEventLoop *eventLoop, long long id)
-{
+int aeDeleteTimeEvent(aeEventLoop *eventLoop, long long id) {
     aeTimeEvent *te = eventLoop->timeEventHead;
-    while(te) {
+    while (te) {
         if (te->id == id) {
             te->id = AE_DELETED_EVENT_ID;
             return AE_OK;
@@ -270,9 +240,9 @@ static int processTimeEvents(aeEventLoop *eventLoop) {
     long long maxId;
 
     te = eventLoop->timeEventHead;
-    maxId = eventLoop->timeEventNextId-1;
+    maxId = eventLoop->timeEventNextId - 1;
     monotime now = getMonotonicUs();
-    while(te) {
+    while (te) {
         long long id;
 
         /* Remove events scheduled for deletion. */
@@ -344,15 +314,19 @@ static int processTimeEvents(aeEventLoop *eventLoop) {
  * if flags has AE_CALL_AFTER_SLEEP set, the aftersleep callback is called.
  * if flags has AE_CALL_BEFORE_SLEEP set, the beforesleep callback is called.
  *
- * The function returns the number of events processed. */
-int aeProcessEvents(aeEventLoop *eventLoop, int flags)
-{
+ * The function returns the number of events processed.
+ * 事件捕获与分发
+ * */
+int aeProcessEvents(aeEventLoop *eventLoop, int flags) {
     int processed = 0, numevents;
 
-    /* Nothing to do? return ASAP */
+    /*
+     * 若没有事件处理，则立刻返回。（既没有时间事件，也没有网络事件）
+     * Nothing to do? return ASAP */
     if (!(flags & AE_TIME_EVENTS) && !(flags & AE_FILE_EVENTS)) return 0;
 
-    /* Note that we want to call select() even if there are no
+    /* 如果有IO事件发生，或者紧急的时间事件发生，则开始处理（有 IO 事件或者有需要紧急处理的时间事件）
+     * Note that we want to call select() even if there are no
      * file events to process as long as we want to process time
      * events, in order to sleep until the next time event is ready
      * to fire. */
@@ -390,8 +364,14 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
         if (eventLoop->beforesleep != NULL && flags & AE_CALL_BEFORE_SLEEP)
             eventLoop->beforesleep(eventLoop);
 
-        /* Call the multiplexing API, will return only on timeout or when
-         * some event fires. */
+        /* 调用aeApiPoll函数捕获事件
+         * Call the multiplexing API, will return only on timeout or when
+         * some event fires.
+         * ae_epoll.c，对应 Linux 上的 IO 复用函数 epoll；
+         * ae_evport.c，对应 Solaris 上的 IO 复用函数evport；
+         * ae_kqueue.c，对应 macOS 或 FreeBSD 上的 IO 复用函数kqueue；
+         * ae_select.c，对应 Linux（或 Windows）的 IO 复用函数 select
+         * */
         numevents = aeApiPoll(eventLoop, tvp);
 
         /* After sleep callback. */
@@ -424,7 +404,7 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
              * Fire the readable event if the call sequence is not
              * inverted. */
             if (!invert && fe->mask & mask & AE_READABLE) {
-                fe->rfileProc(eventLoop,fd,fe->clientData,mask);
+                fe->rfileProc(eventLoop, fd, fe->clientData, mask);
                 fired++;
                 fe = &eventLoop->events[fd]; /* Refresh in case of resize. */
             }
@@ -432,7 +412,7 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
             /* Fire the writable event. */
             if (fe->mask & mask & AE_WRITABLE) {
                 if (!fired || fe->wfileProc != fe->rfileProc) {
-                    fe->wfileProc(eventLoop,fd,fe->clientData,mask);
+                    fe->wfileProc(eventLoop, fd, fe->clientData, mask);
                     fired++;
                 }
             }
@@ -442,9 +422,8 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
             if (invert) {
                 fe = &eventLoop->events[fd]; /* Refresh in case of resize. */
                 if ((fe->mask & mask & AE_READABLE) &&
-                    (!fired || fe->wfileProc != fe->rfileProc))
-                {
-                    fe->rfileProc(eventLoop,fd,fe->clientData,mask);
+                    (!fired || fe->wfileProc != fe->rfileProc)) {
+                    fe->rfileProc(eventLoop, fd, fe->clientData, mask);
                     fired++;
                 }
             }
@@ -452,10 +431,11 @@ int aeProcessEvents(aeEventLoop *eventLoop, int flags)
             processed++;
         }
     }
-    /* Check time events */
+    // 检查是否有时间事件，若有，则调用processTimeEvents函数处理（只有普通的时间事件）
     if (flags & AE_TIME_EVENTS)
         processed += processTimeEvents(eventLoop);
 
+    //返回已经处理的文件或时间
     return processed; /* return the number of processed file/time events */
 }
 
@@ -470,7 +450,7 @@ int aeWait(int fd, int mask, long long milliseconds) {
     if (mask & AE_READABLE) pfd.events |= POLLIN;
     if (mask & AE_WRITABLE) pfd.events |= POLLOUT;
 
-    if ((retval = poll(&pfd, 1, milliseconds))== 1) {
+    if ((retval = poll(&pfd, 1, milliseconds)) == 1) {
         if (pfd.revents & POLLIN) retmask |= AE_READABLE;
         if (pfd.revents & POLLOUT) retmask |= AE_WRITABLE;
         if (pfd.revents & POLLERR) retmask |= AE_WRITABLE;
@@ -488,8 +468,8 @@ void aeMain(aeEventLoop *eventLoop) {
     eventLoop->stop = 0;
     while (!eventLoop->stop) {
         //开始处理事件
-        aeProcessEvents(eventLoop, AE_ALL_EVENTS|
-                                   AE_CALL_BEFORE_SLEEP|
+        aeProcessEvents(eventLoop, AE_ALL_EVENTS |
+                                   AE_CALL_BEFORE_SLEEP |
                                    AE_CALL_AFTER_SLEEP);
     }
 }

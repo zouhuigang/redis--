@@ -70,9 +70,13 @@ typedef void aeBeforeSleepProc(struct aeEventLoop *eventLoop);
 
 /* File event structure */
 typedef struct aeFileEvent {
+    //是用来表示事件类型的掩码。框架在分发事件时，依赖的就是结构体中的事件类型；
     int mask; /* one of AE_(READABLE|WRITABLE|BARRIER) */
+    //Reactor 模型中的 handler 处理读事件
     aeFileProc *rfileProc;
+    //Reactor 模型中的 handler 处理写事件
     aeFileProc *wfileProc;
+    //指向客户端私有数据的指针
     void *clientData;
 } aeFileEvent;
 
